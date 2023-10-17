@@ -29,6 +29,7 @@ set(GENERATE_DEBUG_SYMBOLS ON)
 
 # Include Jolt
 include(FetchContent)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s SHARED_MEMORY -s WASM_WORKERS -UJPH_PROFILE_ENABLED")
 FetchContent_Declare(
         JoltPhysics
         GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
@@ -49,7 +50,7 @@ set(EMCC_ARGS
   --closure=1
   -s ALLOW_MEMORY_GROWTH=${ALLOW_MEMORY_GROWTH}
   -s ALLOW_TABLE_GROWTH=1
-  -s ENVIRONMENT='web,node'
+  -s ENVIRONMENT='web,node,worker'
   -s EXPORT_ES6=1
   -s EXPORT_NAME="Jolt"
   -s MODULARIZE=1
@@ -57,7 +58,8 @@ set(EMCC_ARGS
   -s NO_FILESYSTEM=1
   -s TOTAL_STACK=1048576
   -s TOTAL_MEMORY=${TOTAL_MEMORY}
-  -s WASM_WORKERS)
+  -s SHARED_MEMORY -s WASM_WORKERS -UJPH_PROFILE_ENABLED
+  )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(EMCC_ARGS 
@@ -91,13 +93,14 @@ set(EMCC_GLUE_ARGS
   -Wall
   -std=c++17
   -include ${JOLT_HEADER_FILE}
+  -s SHARED_MEMORY -s WASM_WORKERS -UJPH_PROFILE_ENABLED
   )
 
 # Can't find a way to automatically inherit settings set by target_compile_definitions, so hardcoding defines here
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		-DJPH_DEBUG_RENDERER -DJPH_PROFILE_ENABLED -D_DEBUG)
+		-DJPH_DEBUG_RENDERER -D_DEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}

@@ -1941,6 +1941,7 @@ interface JobSystem {
 };
 interface WebJobSystemThreadPool {
 	void WebJobSystemThreadPool(long inMaxJobs, long inMaxBarriers, optional long inNumThreads = -1);
+	void ThreadMain(long inThreadIndex);
 };
 
 WebJobSystemThreadPool implements JobSystem;

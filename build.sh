@@ -12,7 +12,7 @@ rm -rf ./dist
 mkdir dist
 
 cmake -B Build/$BUILD_TYPE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-cmake --build Build/$BUILD_TYPE -j`nproc`
+cmake --build Build/$BUILD_TYPE -j`nproc` --target jolt-wasm
 
 npx webidl-dts-gen -e -d -i ./JoltJS.idl -o ./dist/types.d.ts -n Jolt
 
@@ -27,4 +27,5 @@ EOF
 cp ./dist/jolt-physics.d.ts ./dist/jolt-physics.wasm.d.ts
 cp ./dist/jolt-physics.d.ts ./dist/jolt-physics.wasm-compat.d.ts
 
-cp ./dist/jolt-physics.wasm-compat.js ./Examples/js/jolt-physics.wasm-compat.js
+cp ./dist/jolt-physics.wasm.js ./Examples/js/.
+cp ./dist/jolt-physics.wasm.wasm ./Examples/js/.

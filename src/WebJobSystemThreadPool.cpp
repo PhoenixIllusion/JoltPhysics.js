@@ -10,6 +10,8 @@
 #include "WebJobSystemThreadPool.h"
 
 
+void WebJobSystemThreadPool_ThreadMain(int threadPool, int inThreadIndex) { ((WebJobSystemThreadPool *)threadPool)->ThreadMain(inThreadIndex);}
+
 
 void WebJobSystemThreadPool::Init(uint inMaxJobs, uint inMaxBarriers, int inNumThreads)
 {
@@ -52,8 +54,10 @@ void WebJobSystemThreadPool::StartThreads(int inNumThreads)
 	// Start running threads
 	JPH_ASSERT(mThreads.empty());
 	mThreads.reserve(inNumThreads);
-	for (int i = 0; i < inNumThreads; ++i)
+	for (int i = 0; i < inNumThreads + 1; ++i) {
+		emscripten_wasm_worker_t worker = emscripten_malloc_wasm_worker(/*stackSize: */10240);
 		mThreads.emplace_back(true);
+	}
 }
 
 WebJobSystemThreadPool::~WebJobSystemThreadPool()

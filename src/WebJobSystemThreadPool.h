@@ -43,7 +43,6 @@ public:
 
 	/// Entry point for a thread
 	void					ThreadMain(int inThreadIndex);
-
 protected:
 	// See JobSystem
 	virtual void			QueueJob(Job *inJob) override;

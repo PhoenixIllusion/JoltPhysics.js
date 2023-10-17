@@ -10,6 +10,7 @@
 
 WebJobSystemWithBarrier::BarrierImpl::BarrierImpl()
 {
+	mSemaphore.Clear();
 	for (atomic<Job *> &j : mJobs)
 		j = nullptr;
 }

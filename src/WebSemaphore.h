@@ -15,7 +15,8 @@ public:
 	void	Acquire(uint inNumber = 1) { emscripten_semaphore_waitinf_acquire(&_semaphore, inNumber); }
 
 	/// Get the current value of the semaphore
-	inline emscripten_semaphore_t	GetValue() const								{ return _semaphore; }
+	inline emscripten_semaphore_t	GetValue() const{ return _semaphore; }
+	void Clear() { _semaphore = 0; } 
 private:
-		emscripten_semaphore_t _semaphore;
+		emscripten_semaphore_t _semaphore = 0;
 };

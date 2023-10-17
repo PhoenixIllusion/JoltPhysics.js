@@ -32,7 +32,7 @@
 						workers.push(this);
 					}
 				}
-				settings.mJobSystem = new Jolt.WebJobSystemThreadPool(2048, 0, 2);
+				settings.mJobSystem = new Jolt.WebJobSystemThreadPool(2048, 8, 1);
 				let workersLoaded = workers.map(worker => new Promise(resolve => {
 																worker.onmessage = () => resolve();
 															}));

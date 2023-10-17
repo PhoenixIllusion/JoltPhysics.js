@@ -10,9 +10,6 @@
 #include "WebJobSystemThreadPool.h"
 
 
-void WebJobSystemThreadPool_ThreadMain(int threadPool, int inThreadIndex) { ((WebJobSystemThreadPool *)threadPool)->ThreadMain(inThreadIndex);}
-
-
 void WebJobSystemThreadPool::Init(uint inMaxJobs, uint inMaxBarriers, int inNumThreads)
 {
 	WebJobSystemWithBarrier::Init(inMaxBarriers);
@@ -30,6 +27,7 @@ void WebJobSystemThreadPool::Init(uint inMaxJobs, uint inMaxBarriers, int inNumT
 
 WebJobSystemThreadPool::WebJobSystemThreadPool(uint inMaxJobs, uint inMaxBarriers, int inNumThreads)
 {
+	mSemaphore.Clear();
 	Init(inMaxJobs, inMaxBarriers, inNumThreads);
 }
 

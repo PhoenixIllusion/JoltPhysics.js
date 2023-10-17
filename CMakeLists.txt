@@ -91,6 +91,7 @@ set(EMCC_GLUE_ARGS
   -I${JoltPhysics_SOURCE_DIR}/..
   -I${WEB_JOBSYSTEM_INCLUDE}
   -Wall
+  -g 
   -std=c++17
   -include ${JOLT_HEADER_FILE}
   -s SHARED_MEMORY -s WASM_WORKERS -UJPH_PROFILE_ENABLED

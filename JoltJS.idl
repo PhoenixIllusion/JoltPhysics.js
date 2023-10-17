@@ -1936,9 +1936,18 @@ interface CharacterVirtual {
 
 CharacterVirtual implements CharacterBase;
 
+interface JobSystem {
+
+};
+interface WebJobSystemThreadPool {
+	void WebJobSystemThreadPool(long inMaxJobs, long inMaxBarriers, optional long inNumThreads = -1);
+};
+
+WebJobSystemThreadPool implements JobSystem;
+
 interface JoltSettings {
 	void JoltSettings();
-
+	attribute JobSystem mJobSystem;
 	attribute unsigned long mMaxBodies;
 	attribute unsigned long mMaxBodyPairs;
 	attribute unsigned long mMaxContactConstraints;

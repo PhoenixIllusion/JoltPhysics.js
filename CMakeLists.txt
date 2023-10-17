@@ -11,6 +11,10 @@ set(JOLT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.h)
 set(JOLT_IDL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.idl)
 set(OUTPUT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/dist/)
 
+set(WEB_JOBSYSTEM_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+set(WEB_JOBSYSTEM_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/WebJobSystemThreadPool.cpp)
+set(WEB_JOBSYSTEM_BARRIER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/WebJobSystemWithBarrier.cpp)
+
 # The configurations we support
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Distribution")
 
@@ -52,7 +56,8 @@ set(EMCC_ARGS
   -s NO_EXIT_RUNTIME=1
   -s NO_FILESYSTEM=1
   -s TOTAL_STACK=1048576
-  -s TOTAL_MEMORY=${TOTAL_MEMORY})
+  -s TOTAL_MEMORY=${TOTAL_MEMORY}
+  -s WASM_WORKERS)
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(EMCC_ARGS 
@@ -82,9 +87,11 @@ set(EMCC_WASM_COMPAT_ARGS ${EMCC_WASM_ARGS}
 set(EMCC_GLUE_ARGS
   -c
   -I${JoltPhysics_SOURCE_DIR}/..
+  -I${WEB_JOBSYSTEM_INCLUDE}
   -Wall
   -std=c++17
-  -include ${JOLT_HEADER_FILE})
+  -include ${JOLT_HEADER_FILE}
+  )
 
 # Can't find a way to automatically inherit settings set by target_compile_definitions, so hardcoding defines here
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -115,17 +122,24 @@ add_custom_command(
   COMMENT "Generating JoltPhysics.js bindings"
   VERBATIM)
 add_custom_command(
+  OUTPUT WebJobSystemThreadPool.o WebJobSystemWithBarrier.o
+  COMMAND emcc ${WEB_JOBSYSTEM_SOURCE} ${EMCC_GLUE_ARGS} -o WebJobSystemThreadPool.o
+  COMMAND emcc ${WEB_JOBSYSTEM_BARRIER_SOURCE} ${EMCC_GLUE_ARGS} -o WebJobSystemWithBarrier.o
+  DEPENDS ${WEB_JOBSYSTEM_SOURCE} ${WEB_JOBSYSTEM_BARRIER_SOURCE}
+  COMMENT "Generating WebThreadPool objects"
+  VERBATIM)
+add_custom_command(
   OUTPUT glue.o
   COMMAND emcc glue.cpp ${EMCC_GLUE_ARGS} -o glue.o
   DEPENDS glue.cpp ${JOLT_HEADER_FILE}
   COMMENT "Building JoltPhysics.js bindings"
   VERBATIM)
-add_custom_target(jolt-bindings ALL DEPENDS glue.js glue.o)
+add_custom_target(jolt-bindings ALL DEPENDS glue.js glue.o WebJobSystemThreadPool.o WebJobSystemWithBarrier.o)
 
 #######################################
 add_custom_command(
   OUTPUT ${OUTPUT_FOLDER}jolt-physics.js
-  COMMAND emcc glue.o $<TARGET_FILE:Jolt> ${EMCC_JS_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.js
+  COMMAND emcc glue.o WebJobSystemThreadPool.o WebJobSystemWithBarrier.o $<TARGET_FILE:Jolt> ${EMCC_JS_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.js
   DEPENDS jolt-bindings ${JOLT_FRONT_MATTER_FILE} ${JOLT_TARGETS} ${JOLT_IDL_FILE} ${JOLT_HEADER_FILE}
   COMMENT "Building JoltPhysics.js javascript"
   VERBATIM)
@@ -134,7 +148,7 @@ add_custom_target(jolt-javascript ALL DEPENDS ${OUTPUT_FOLDER}jolt-physics.js)
 #######################################
 add_custom_command(
   OUTPUT ${OUTPUT_FOLDER}jolt-physics.wasm.js ${OUTPUT_FOLDER}jolt-physics.wasm.wasm
-  COMMAND emcc glue.o $<TARGET_FILE:Jolt> ${EMCC_WASM_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.wasm.js
+  COMMAND emcc glue.o WebJobSystemThreadPool.o WebJobSystemWithBarrier.o $<TARGET_FILE:Jolt> ${EMCC_WASM_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.wasm.js
   DEPENDS jolt-bindings ${JOLT_FRONT_MATTER_FILE} ${JOLT_TARGETS} ${JOLT_IDL_FILE} ${JOLT_HEADER_FILE}
   COMMENT "Building JoltPhysics.js webassembly"
   VERBATIM)
@@ -143,7 +157,7 @@ add_custom_target(jolt-wasm ALL DEPENDS ${OUTPUT_FOLDER}jolt-physics.wasm.js ${O
 #######################################
 add_custom_command(
   OUTPUT ${OUTPUT_FOLDER}jolt-physics.wasm-compat.js
-  COMMAND emcc glue.o $<TARGET_FILE:Jolt> ${EMCC_WASM_COMPAT_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.wasm-compat.js
+  COMMAND emcc glue.o WebJobSystemThreadPool.o WebJobSystemWithBarrier.o $<TARGET_FILE:Jolt> ${EMCC_WASM_COMPAT_ARGS} -o ${OUTPUT_FOLDER}jolt-physics.wasm-compat.js
   DEPENDS jolt-bindings ${JOLT_FRONT_MATTER_FILE} ${JOLT_TARGETS} ${JOLT_IDL_FILE} ${JOLT_HEADER_FILE}
   COMMENT "Building JoltPhysics.js compat webassembly"
   VERBATIM)

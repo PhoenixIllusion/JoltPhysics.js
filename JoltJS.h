@@ -43,6 +43,9 @@
 #include "Jolt/Physics/SoftBody/SoftBodySharedSettings.h"
 #include "Jolt/Physics/Character/CharacterVirtual.h"
 
+#include "src/WebJobSystemThreadPool.h"
+#include "src/WebJobSystemWithBarrier.h"
+
 #include <iostream>
 
 using namespace JPH;
@@ -242,6 +245,7 @@ public:
 class JoltSettings
 {
 public:
+	JobSystem * 	mJobSystem = new JobSystemThreadPool(cMaxPhysicsJobs, cMaxPhysicsBarriers, (int)thread::hardware_concurrency() - 1);
 	uint					mMaxBodies = 10240;
 	uint					mMaxBodyPairs = 65536;
 	uint					mMaxContactConstraints = 10240;
@@ -253,7 +257,7 @@ class JoltInterface
 {
 public:
 	/// Constructor
-							JoltInterface(const JoltSettings &inSettings)
+	JoltInterface(const JoltSettings &inSettings)
 	{
 		// Install callbacks
 		Trace = TraceImpl;
@@ -270,6 +274,7 @@ public:
 		
 		// Init the physics system
 		constexpr uint cNumBodyMutexes = 0;
+		mJobSystem = inSettings.mJobSystem;
 		mPhysicsSystem.Init(inSettings.mMaxBodies, cNumBodyMutexes, inSettings.mMaxBodyPairs, inSettings.mMaxContactConstraints, mBPLayerInterface, mObjectVsBroadPhaseLayerFilter, mObjectVsObjectLayerFilter);
 	}
 
@@ -285,7 +290,7 @@ public:
 	/// Step the world
 	void					Step(float inDeltaTime, int inCollisionSteps)
 	{
-		mPhysicsSystem.Update(inDeltaTime, inCollisionSteps, mTempAllocator, &mJobSystem);
+		mPhysicsSystem.Update(inDeltaTime, inCollisionSteps, mTempAllocator, mJobSystem);
 	}
 
 	/// Access to the physics system
@@ -314,7 +319,7 @@ public:
 
 private:
 	TempAllocatorImpl *		mTempAllocator;
-	JobSystemThreadPool		mJobSystem { cMaxPhysicsJobs, cMaxPhysicsBarriers, (int)thread::hardware_concurrency() - 1 };
+	JobSystem	* mJobSystem;
 	BPLayerInterfaceImpl	mBPLayerInterface;
 	ObjectVsBroadPhaseLayerFilterImpl mObjectVsBroadPhaseLayerFilter;
 	ObjectLayerPairFilterImpl mObjectVsObjectLayerFilter;

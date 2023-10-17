@@ -5,6 +5,7 @@ import initJolt from './jolt-physics.wasm.js';
 
 let Jolt;
 let JoltInterface;
+let done = true;
 onmessage = async function(d) {
     d = d.data;
     if(d['ThreadPool'] && d['ThreadPoolIndex']) {
@@ -16,8 +17,10 @@ onmessage = async function(d) {
         JoltInterface = Jolt.wrapPointer(d['JoltInterface'], Jolt.JoltInterface);
 				postMessage('loaded');
     }
-    if(d['Step']) {
+    if(d['Step'] && done) {
+        done = false;
         JoltInterface.Step(1/60, 1);
+        done = true;
     }
     if(d['wasm']) {
         d['instantiateWasm'] = (info, receiveInstance) => {

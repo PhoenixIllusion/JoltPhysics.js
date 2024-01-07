@@ -217,10 +217,12 @@
 
 					// Disable parent child collisions so that we don't get collisions between constrained bodies
 					settings.DisableParentChildCollisions();
-
+					settings.CalculateBodyIndexToConstraintIndex();
+					
 					// Create ragdoll
 					mRagdoll = settings.CreateRagdoll(0, 0, physicsSystem);
 					mRagdoll.AddToPhysicsSystem(Jolt.EActivation_Activate);
+					
 
 					let bodyCount = mRagdoll.GetBodyCount();
 					for(let i=0; i < bodyCount; i++) {

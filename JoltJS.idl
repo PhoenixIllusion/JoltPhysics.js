@@ -2794,6 +2794,9 @@ interface RagdollSettings {
 	[Value] attribute ArrayRagdollPart mParts;
 	[Value] attribute ArrayRagdollAdditionalConstraint mAdditionalConstraints;
 	void DisableParentChildCollisions([Const] optional Mat44MemRef inJointMatrices, optional float inMinSeparationDistance);
+
+	void CalculateBodyIndexToConstraintIndex();
+	void CalculateConstraintIndexToBodyIdxPair();
 };
 
 

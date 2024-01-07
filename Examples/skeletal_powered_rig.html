@@ -74,8 +74,10 @@
 							skeletalPose.CalculateJointMatrices();*/
 							trackBones.forEach(([a,b],i) => {
 								b.getWorldPosition(pos)
+								b.getWorldQuaternion(quat);
 								a.position.copy(pos);
-								a.position.x -= 15;
+								a.position.x -= 15
+								a.rotation.setFromQuaternion(quat);
 								const mat44 = skeletalPose.GetJointMatrix(i);
 								SetMatrix(mat44, b.matrixWorld, tmpVec);
 							})
@@ -93,7 +95,7 @@
 						const name = b.name.replace(trackPrefix, '');
 						boneLookup[name] = b;
 
-						const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2, 1, 1, 1));
+						const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2, 1, 1, 1));
 						trackBones.push([box, b]);
 						scene.add(box);
 						return name;

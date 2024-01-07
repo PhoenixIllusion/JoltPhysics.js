@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>JoltPhysics.js demo</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		<div id="container">Loading...</div>
+		<div id="info">JoltPhysics.js skeletal animation demo<br/></div>
+
+		<script src="js/three/three.min.js"></script>
+		<script src="js/three/OrbitControls.js"></script>
+		<script src="js/three/GLTFLoader.js"></script>
+		<script src="js/three/WebGL.js"></script>
+		<script src="js/three/stats.min.js"></script>
+		<script src="js/example.js"></script>
+
+		<script type="module">
+			// In case you haven't built the library yourself, replace URL with: https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js
+			import initJolt from './js/jolt-physics.wasm-compat.js';
+
+			let mixer = undefined;
+			let modelReady = false;
+
+			const animationActions = []
+			let activeAction = undefined;
+			let lastAction = undefined;
+			let skeletalHelper;
+
+			const trackBones = [];
+			let threeSkeleton;
+
+			const texLoader = new THREE.TextureLoader();
+			const texture = texLoader.load('data:image/gif;base64,R0lGODdhAgACAIABAAAAAP///ywAAAAAAgACAAACA0QCBQA7');
+			texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+			texture.offset.set(0, 0);
+			texture.repeat.set(20, 20);
+			texture.magFilter = THREE.NearestFilter;
+
+			const quat = new THREE.Quaternion();
+			const pos = new THREE.Vector3();
+
+			function SetMatrix( mat44, threeMat, tmpVec) {
+				tmpVec.Set(... threeMat.elements.slice(0, 3));
+				mat44.SetAxisX(tmpVec);
+				tmpVec.Set(... threeMat.elements.slice(4, 7));
+				mat44.SetAxisY(tmpVec);
+				tmpVec.Set(... threeMat.elements.slice(8, 11));
+				mat44.SetAxisZ(tmpVec);
+				tmpVec.Set(... threeMat.elements.slice(12, 15));
+				tmpVec.SetX(threeMat.elements[12]-10);
+				mat44.SetTranslation(tmpVec);
+			}
+
+
+			const S = (string) => new Jolt.JPHString(string, string.length);
+			initJolt().then(function (Jolt) {
+				let boneAnimations = {}
+				let mRagdoll;
+				let skeletalAnimation;
+				let skeletalPose;
+				const tmpVec = new Jolt.Vec3();
+				// Initialize this example
+				initExample(Jolt, (time, delta) => {
+
+    			if (modelReady){
+						mixer.update(delta);
+						if(skeletalAnimation && skeletalPose && mRagdoll) {
+
+							/*
+							skeletalAnimation.Sample(time, skeletalPose);
+							skeletalPose.CalculateJointMatrices();*/
+							trackBones.forEach(([a,b],i) => {
+								b.getWorldPosition(pos)
+								a.position.copy(pos);
+								a.position.x -= 15;
+								const mat44 = skeletalPose.GetJointMatrix(i);
+								SetMatrix(mat44, b.matrixWorld, tmpVec);
+							})
+							mRagdoll.DriveToPoseUsingKinematics(skeletalPose, delta);
+						}
+					}
+
+				});
+
+				function buildSkeletalAnimation(skeleton) {
+					const trackPrefix = 'mixamorig';
+
+					const boneLookup = {};
+					const bones = skeletalHelper.bones.map(b => {
+						const name = b.name.replace(trackPrefix, '');
+						boneLookup[name] = b;
+
+						const box = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2, 1, 1, 1));
+						trackBones.push([box, b]);
+						scene.add(box);
+						return name;
+					});
+
+					skeletalAnimation = new Jolt.SkeletalAnimation();
+					const joints = skeletalAnimation.GetAnimatedJoints();
+					joints.resize(bones.length);
+
+					const FRAME_COUNT = Math.floor(activeAction.getClip().duration / 0.05);
+
+					for(let i=0;i< bones.length;i++) {
+						const joint = joints.at(i);
+						joint.mJointName = S(bones[i].replace(trackPrefix, ''));
+						joint.mKeyframes.resize(FRAME_COUNT);
+					}
+					for(let f=0; f < FRAME_COUNT; f++) {
+						mixer.setTime(f * 0.05);
+						skeleton.pose();
+						for(let i=0;i< bones.length;i++) {
+							const joint = joints.at(i);
+
+							const keyFrame = joint.mKeyframes.at(f);
+							keyFrame.mTime = f * 0.05;
+
+							const bone = boneLookup[bones[i]];
+							const p = bone.position;
+							const q = bone.quaternion;
+							keyFrame.mTranslation.Set(p.x, p.y, p.z);
+							keyFrame.mRotation.Set(q.x, q.y, q.z, q.w);
+						}
+					}
+				}
+
+
+				const loader = new THREE.GLTFLoader();
+				let floor = createFloor();
+				const floorModel = dynamicObjects[dynamicObjects.length-1];
+				floorModel.material.map = texture;
+
+        loader.load( 'assets/character.glb', function ( gltf ) {
+					mixer = new THREE.AnimationMixer(gltf.scene)
+					const object = gltf.scene || gltf.scenes[0];
+					const clips = gltf.animations || [];
+
+					const skeleton = new Jolt.Skeleton();
+
+					const settings = new Jolt.RagdollSettings();
+					settings.mSkeleton = skeleton;
+
+
+					const boneNames = [];
+					const boneBody = {};
+
+					const halfExtent = new Jolt.Vec3();
+					function getShape(node) {
+						if(node) {
+							halfExtent.Set(Math.abs(node.scale.x), Math.abs(node.scale.y), Math.abs(node.scale.z));
+							return new Jolt.BoxShape(halfExtent, 0.05);
+						} else {
+							halfExtent.Set(0.1, 0.1, 0.1);
+							return new  Jolt.BoxShape(halfExtent, 0.05);
+						}
+					}
+
+					object.traverse((node) => {
+						if (node.geometry && node.skeleton ) {
+							skeletalHelper = new THREE.SkeletonHelper(node.skeleton.bones[0].parent);
+							threeSkeleton = node.skeleton;
+							skeletalHelper.material.linewidth = 3;
+							scene.add(skeletalHelper);
+						}
+					});
+					settings.mParts.resize(skeletalHelper.bones.length);
+					object.traverse((node) => {
+						if(node.name.startsWith('-C-')) {
+							const name = node.name.split('-C-')[1];
+							boneBody[name] = node;
+						}
+					});
+
+					const Y_OFFSET = 3;
+					object.traverse((node) => {
+						if(node.type == 'Bone') {
+							const name = (node) => node.userData.name.split(':')[1];
+							const boneName = name(node);
+							let index = boneNames.length;
+							boneNames.push(boneName);
+							skeleton.AddJoint(S(boneName), boneNames.indexOf(name(node.parent)));
+
+							const part = settings.mParts.at(index);
+							const collisionObj = boneBody[boneName];
+							part.SetShape(getShape(collisionObj));
+
+							if(collisionObj) {
+								collisionObj.getWorldPosition(pos);
+								collisionObj.getWorldQuaternion(quat);
+								part.mPosition.Set(pos.x, pos.y + Y_OFFSET, pos.z);
+								part.mRotation.Set(quat.x, quat.y, quat.z, quat.w);
+								part.mMotionType = Jolt.EMotionType_Kinematic;
+								part.mObjectLayer = 1;
+							} else {
+								part.mMotionType = Jolt.EMotionType_Kinematic;
+								node.getWorldPosition(pos);
+								part.mPosition.Set(pos.x, pos.y + Y_OFFSET, pos.z);
+								part.mIsSensor = true;
+							}
+							if (index > 0) {
+								const constraint = new Jolt.DistanceConstraintSettings();
+								node.getWorldPosition(pos);
+								constraint.mPoint1.Set(pos.x,pos.y+ Y_OFFSET,pos.z)
+								node.parent.getWorldPosition(pos);
+								constraint.mPoint2 = constraint.mPoint1
+								part.mToParent = constraint;
+							}
+						}
+					});
+
+					// Optional: Stabilize the inertia of the limbs
+					settings.Stabilize();
+
+					// Disable parent child collisions so that we don't get collisions between constrained bodies
+					settings.DisableParentChildCollisions();
+
+					// Create ragdoll
+					mRagdoll = settings.CreateRagdoll(0, 0, physicsSystem);
+					mRagdoll.AddToPhysicsSystem(Jolt.EActivation_Activate);
+
+					let bodyCount = mRagdoll.GetBodyCount();
+					for(let i=0; i < bodyCount; i++) {
+						const bodyID = mRagdoll.GetBodyID(i);
+						let body = physicsSystem.GetBodyLockInterfaceNoLock().TryGetBody(bodyID);
+						addToScene(body, 0xFF00FF);
+					}
+
+
+					object.children.forEach(obj => {
+						if(obj.name.startsWith('-')) {
+							obj.position.x -=5
+							obj.position.y += Y_OFFSET;
+						}
+					});
+					object.position.x +=10;
+					scene.add(object)
+					const animationAction = mixer.clipAction(gltf.animations[0])
+					animationActions.push(animationAction)
+					activeAction = animationActions[0];
+					activeAction.play();
+
+					buildSkeletalAnimation(threeSkeleton);
+					skeletalPose = new Jolt.SkeletonPose();
+					skeletalPose.SetSkeleton(skeleton);
+					modelReady = true;
+
+
+			//mRagdoll.SetLinearAndAngularVelocity(new Jolt.Vec3(1, 7, 0), new Jolt.Vec3(7, 0, 7), false);
+
+
+        }, undefined, function ( error ) {
+          console.error( error );
+        } );
+				camera.position.z = 8;
+				camera.position.y = 2;
+			});
+
+		</script>
+	</body>
+</html>

@@ -247,6 +247,23 @@ interface Vec3 {
 	[Const, Value] Vec3 GetSign();
 };
 
+interface Vec4 {
+	void Vec4();
+	void Vec4([Const, Ref] Vec4 inV);
+	void Vec4([Ref] Vec3 inV, float inW);
+	void Vec4(float inX, float inY, float inZ, float inW);
+	float GetX();
+	float GetY();
+	float GetZ();
+	float GetW();
+	void SetX(float inX);
+	void SetY(float inY);
+	void SetZ(float inZ);
+	void SetW(float inW);
+	void Set(float inX, float inY, float inZ, float inW);
+	[Operator="[]"] float GetComponent(unsigned long inCoordinate);
+};
+
 interface Vector2 {
 	void Vector2();
 	void SetZero();
@@ -346,10 +363,12 @@ interface Mat44 {
 	[Value] Mat44 PostTranslated([Const, Ref] Vec3 inTranslation);
 	[Value] Mat44 PreScaled([Const, Ref] Vec3 inScale);
 	[Value] Mat44 PostScaled([Const, Ref] Vec3 inScale);
+	void SetColumn3(long inCol, [Ref] Vec3 inV);
 	void SetAxisX([Ref] Vec3 inV);
 	void SetAxisY([Ref] Vec3 inV);
 	void SetAxisZ([Ref] Vec3 inV);
 	void SetTranslation([Ref] Vec3 inV);
+	void SetColumn4(long inCol, [Ref] Vec4 inV);
 };
 
 interface AABox {

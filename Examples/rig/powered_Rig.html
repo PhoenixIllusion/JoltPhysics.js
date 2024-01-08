@@ -49,16 +49,19 @@
         let mAnimationTime = 0;
         const root_offset = new Jolt.Vec3();
         const sZero = new Jolt.Vec3.prototype.sZero();
+        const joint_rot = new Jolt.Quat();
 				// Initialize this example
 				initExample(Jolt, (mTime, mDeltaTime) => {
           if(mAnimation && mPose && mRagdoll) {
             mAnimation.Sample(mAnimationTime, mPose);
 
 
-	          //const joint = mPose.GetJoint(0);
-            //joint.mTranslation.Set(0,0,0);
-            //mRagdoll.GetRootTransform(root_offset, joint.mRotation);
-            //mPose.SetRootOffset(root_offset);
+	          const joint = mPose.GetJoint(0);
+            sZero.Set(0,0,0);
+            joint.mTranslation = sZero;
+            mRagdoll.GetRootTransform(root_offset, joint_rot);
+            joint.mRotation = joint_rot;
+            mPose.SetRootOffset(root_offset);
             mAnimationTime += mDeltaTime;
 	          mPose.CalculateJointMatrices();
 	          mRagdoll.DriveToPoseUsingMotors(mPose);

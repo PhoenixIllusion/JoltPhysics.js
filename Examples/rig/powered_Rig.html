@@ -8,7 +8,7 @@
 	</head>
 	<body>
 		<div id="container">Loading...</div>
-		<div id="info">JoltPhysics.js Kinematic Rig demo<br/>
+		<div id="info">JoltPhysics.js Powered Rig demo<br/>
       <label>Animation: <select id="sAnimations"></select></label>
 		</div>
 
@@ -42,18 +42,33 @@
                 "Dead_Pose3",
                 "Dead_Pose4" ];
 
-        let sAnimationName = "Walk";
+        let sAnimationName = "Sprint";
 
         let mAnimation, mPose, mRagdoll;
 
         let mAnimationTime = 0;
+        const root_offset = new Jolt.Vec3();
+        const sZero = new Jolt.Vec3.prototype.sZero();
 				// Initialize this example
 				initExample(Jolt, (mTime, mDeltaTime) => {
           if(mAnimation && mPose && mRagdoll) {
             mAnimation.Sample(mAnimationTime, mPose);
+
+
+	          //const joint = mPose.GetJoint(0);
+            //joint.mTranslation.Set(0,0,0);
+            //mRagdoll.GetRootTransform(root_offset, joint.mRotation);
+            //mPose.SetRootOffset(root_offset);
             mAnimationTime += mDeltaTime;
 	          mPose.CalculateJointMatrices();
-	          mRagdoll.DriveToPoseUsingKinematics(mPose, mDeltaTime);
+	          mRagdoll.DriveToPoseUsingMotors(mPose);
+	          //mRagdoll.DriveToPoseUsingKinematics(mPose, mDeltaTime);
+
+            /*let bodyCount = mRagdoll.GetBodyCount();
+            for(let i=0; i < bodyCount; i++) {
+              const bodyID = mRagdoll.GetBodyID(i);
+              bodyInterface.ActivateBody(bodyID);
+            }; */
           }
         });
 
@@ -101,7 +116,8 @@
         });
         dropdown.value = sAnimationName;
 
-        const mRagdollSettings = await RagdollLoader.load(Jolt, "../assets/Human/Human.tof", Jolt.EMotionType_Kinematic, "Ragdoll");
+        const mRagdollSettings = await RagdollLoader.load(Jolt, "../assets/Human/Human.tof", Jolt.EMotionType_Dynamic, "Ragdoll");
+			  mRagdollSettings.DisableParentChildCollisions();
         mRagdoll = mRagdollSettings.CreateRagdoll(0, 0, physicsSystem);
         mRagdoll.AddToPhysicsSystem(Jolt.EActivation_Activate);
         // Create ragdoll
@@ -128,11 +144,16 @@
           sAnimationName = dropdown.value;
           mAnimation = await RagdollLoader.loadAnimation(Jolt, "../assets/Human/animations/"+sAnimationName.toLocaleLowerCase()+".tof");
           mAnimationTime = 0;
+
+          mAnimation.Sample(0.0, mPose);
+          mPose.CalculateJointMatrices();
+          mRagdoll.SetPose(mPose);
         }
 
         dropdown.onchange = () => loadAnimation();
 
         loadAnimation();
+        physicsSystem.SetGravity(new Jolt.Vec3(0,-0.05,0))
 				camera.position.z = -8;
 				camera.position.y = 3;
 			});

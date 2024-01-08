@@ -109,6 +109,7 @@ using ArrayWheelSettings = Array<Ref<WheelSettings>>;
 using ArrayVehicleAntiRollBar = Array<VehicleAntiRollBar>;
 using ArrayVehicleDifferentialSettings = Array<VehicleDifferentialSettings>;
 
+using SkeletalAnimationJointState = SkeletalAnimation::JointState;
 using SkeletalAnimationKeyframe = SkeletalAnimation::Keyframe;
 using SkeletalAnimationAnimatedJoint = SkeletalAnimation::AnimatedJoint;
 using ArraySkeletonKeyframe = Array<SkeletalAnimationKeyframe>;

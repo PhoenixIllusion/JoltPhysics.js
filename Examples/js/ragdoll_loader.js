@@ -150,6 +150,7 @@ const RagdollLoader = {
             Jolt.destroy(shapeSettings);
 
 		    part.mObjectLayer = LAYER_MOVING;
+            part.mMotionType = EMotionType;
             part.mCollisionGroup.SetGroupID(mPart.mCollisionGroup.mGroupID);
             part.mCollisionGroup.SetSubGroupID(mPart.mCollisionGroup.mSubGroupID);
 

@@ -2717,12 +2717,18 @@ interface Skeleton {
 	void CalculateParentJointIndices();
 };
 
-interface SkeletalAnimationKeyframe {
-	void SkeletalAnimationKeyframe();
-	attribute float mTime;
+interface SkeletalAnimationJointState {
+	void FromMatrix([Ref] Mat44 inMatrix);
+	[Value] Mat44 ToMatrix();
 	[Value] attribute Vec3 mTranslation;
 	[Value] attribute Quat mRotation;
 };
+
+interface SkeletalAnimationKeyframe {
+	void SkeletalAnimationKeyframe();
+	attribute float mTime;
+};
+SkeletalAnimationKeyframe implements SkeletalAnimationJointState;
 
 interface ArraySkeletonKeyframe {
 	void ArraySkeletonKeyframe();
@@ -2767,8 +2773,9 @@ interface SkeletonPose {
 	void	SetRootOffset([Ref] Vec3 inOffset);
 	[Value] Vec3 GetRootOffset();
 
-	[Ref] ArrayMat44 GetJointMatrices();
-	[Ref] Mat44 GetJointMatrix(long inJoint);
+	[Const,Ref] SkeletalAnimationJointState GetJoint(long inJoint);
+	[Const,Ref] ArrayMat44 GetJointMatrices();
+	[Const,Ref] Mat44 GetJointMatrix(long inJoint);
 
 	void	CalculateJointMatrices();
 	void	CalculateJointStates();

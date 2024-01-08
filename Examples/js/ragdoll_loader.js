@@ -175,5 +175,27 @@ const RagdollLoader = {
         Jolt.destroy(vec4);
         Jolt.destroy(quat);
         return ragdoll;
+    },
+    loadAnimation: async function(Jolt, filename) {
+        const S = (string) => new Jolt.JPHString(string, string.length);
+
+        const text = await fetch(filename).then(res => res.text());
+        const objects = ObjectStreamIn.sReadObject(text);
+        const { mAnimatedJoints }= objects.result;
+        const skeletalAnimation = new Jolt.SkeletalAnimation();
+        const joints = skeletalAnimation.GetAnimatedJoints();
+        joints.resize(mAnimatedJoints.length);
+        mAnimatedJoints.forEach((_joint, i) => {
+            const joint = joints.at(i);
+            joint.mJointName = S(_joint.mJointName);
+            joint.mKeyframes.resize(_joint.mKeyframes.length);
+            _joint.mKeyframes.forEach((_frame, f) => {
+                const keyFrame = joint.mKeyframes.at(f);
+                keyFrame.mTime = _frame.mTime;
+                keyFrame.mTranslation.Set(... _frame.mTranslation.value);
+                keyFrame.mRotation.Set(... _frame.mRotation.value);
+            });
+        });
+        return skeletalAnimation;
     }
 }

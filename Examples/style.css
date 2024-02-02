@@ -10,3 +10,14 @@ body {
 	width: 100%;
 	padding: 5px;
 }
+div:last-child {
+	position: absolute;
+	bottom: 0;
+	background-color: white;
+}
+div#memoryprofiler_ptrs {
+	position: fixed;
+	bottom: 300px;
+	top: 0;
+	overflow: auto;
+}

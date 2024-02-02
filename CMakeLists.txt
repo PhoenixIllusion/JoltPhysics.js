@@ -26,6 +26,8 @@ set(GENERATE_DEBUG_SYMBOLS ON)
 # Use 32-bit object layers to support more bits in ObjectLayerPairFilterMask
 set(OBJECT_LAYER_BITS 32)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --memoryprofiler")
+
 # Include Jolt
 include(FetchContent)
 FetchContent_Declare(
@@ -55,6 +57,7 @@ set(EMCC_ARGS
   -s NO_EXIT_RUNTIME=1
   -s NO_FILESYSTEM=1
   -s TOTAL_STACK=1048576
+  --memoryprofiler
   -s TOTAL_MEMORY=${TOTAL_MEMORY})
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -87,6 +90,7 @@ set(EMCC_GLUE_ARGS
   -I${JoltPhysics_SOURCE_DIR}/..
   -Wall
   -std=c++17
+  --memoryprofiler
   -DJPH_OBJECT_LAYER_BITS=32
   -include ${JOLT_HEADER_FILE})
 

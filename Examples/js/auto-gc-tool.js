@@ -44,7 +44,7 @@ if(!window.FinalizationRegistry) {
   });
 }
 
-export function AutoRef(object) {
+function AutoRef(object) {
   if(Jolt) {
     if(registry || timerInterval) {
       //Transparent proxy so that we pointers to inner Jolt item do not hard-ref this GC'able item
@@ -64,3 +64,15 @@ export function AutoRef(object) {
     throw new Error("You must register Jolt with this import using 'registerJolt' to allow for access to Jolt.destroy")
   }
 }
+
+AutoRef.Vec3 = function (x, y, z) {
+  return AutoRef(new Jolt.Vec3(x, y, z));
+}
+AutoRef.RVec3 = function (x, y, z) {
+  return AutoRef(new Jolt.RVec3(x, y, z));
+}
+AutoRef.Quat = function (x, y, z, w) {
+  return AutoRef(new Jolt.Quat(x, y, z, w));
+}
+
+export { AutoRef }

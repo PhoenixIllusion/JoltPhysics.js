@@ -48,8 +48,7 @@
 			}
 		}
 
-		initJolt().then(function (Jolt) {
-
+		initJolt({ mainScriptUrlOrBlob: './worker/constraint_path.worker.js'}).then(function (Jolt) {
 			// Initialize this example
 			const updates = [];
 			initExample(Jolt, () => {

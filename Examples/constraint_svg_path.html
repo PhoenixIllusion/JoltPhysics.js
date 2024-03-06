@@ -246,5 +246,201 @@
 		});
 
 	</script>
+	<script>
+
+			function smoothCurvePathCorners(curve, inset) {
+				const curves = curve.curves;
+				const newCurves = [];
+				for(let i=0;i<curves.length;i++) {
+					const cA = curves[i];
+					const cB = curves[(i+1) % curves.length];
+					newCurves.push(cA);
+					if(cA.type == 'LineCurve' && cB.type == 'LineCurve') {
+						corner = cA.v2.clone();
+						const offsetA = corner.clone().sub(cA.v1).normalize().multiplyScalar(inset);
+						const offsetB = corner.clone().sub(cB.v2).normalize().multiplyScalar(inset);
+						cA.v2 = cA.v2.clone().sub(offsetA);
+						cB.v1 = cB.v1.clone().sub(offsetB);
+						newCurves.push(new THREE.QuadraticBezierCurve(cA.v2, corner, cB.v1))
+					}
+				}
+				const newCurvePath = new THREE.CurvePath();
+				newCurves.forEach(curve => {
+					curve.updateArcLengths();
+					newCurvePath.add(curve);
+				})
+				return newCurvePath;
+			}
+
+			function getCurvePathBounds(curve) {
+				const points = curve.getPoints();
+				const bounds =  {
+					min: new THREE.Vector2(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY),
+					max: new THREE.Vector2(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY) };
+				points.forEach(p => {
+					bounds.min.min(p);
+					bounds.max.max(p);
+				})
+				bounds.width = bounds.max.x - bounds.min.x;
+				bounds.height = bounds.max.y - bounds.min.y;
+				return bounds;
+			}
+
+		function findEllipseCenters(p1, p2, rx, ry, theta) {
+			
+			const ZERO = new THREE.Vector2(0,0);
+			const SCALE = new THREE.Vector2(1/rx, 1/ry);
+
+			let rx2 = rx*rx;
+			let ry2 = ry*ry;
+
+			// Find the midpoint
+			const midPoint = new THREE.Vector2((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+			const prime = midPoint.clone().rotateAround(ZERO, theta);
+			const x1p = prime.x;
+			const y1p = prime.y;
+			const x1p2 = prime.x*prime.x;
+			const y1p2 = prime.y*prime.y;
+			const lambda = ( x1p2 /rx2 ) + ( y1p2 / ry2 );
+			if(lambda > 1)
+			{
+					rx = Math.sqrt(lambda) * rx;
+					ry = Math.sqrt(lambda) * ry;
+			}
+			rx2 = rx*rx;
+			ry2 = ry*ry;
+
+			const center2 = (rx2*ry2 - rx2*y1p2 - ry2*x1p2)/(rx2*y1p2 +ry2*x1p2);
+			const co = center2 > 0 ? Math.sqrt( center2 ): 0;
+			const centerPoint = new THREE.Vector2(rx*y1p/ry, -ry*x1p/rx);
+
+			const c0 = centerPoint.clone().multiplyScalar(co).rotateAround(ZERO,-theta).add(midPoint);
+			const c1 = centerPoint.clone().multiplyScalar(-co).rotateAround(ZERO,-theta).add(midPoint);
+
+			return [c0, c1];
+		}
+		
+		function ellipseVectorsToAngle(center, p0, p1, rx, ry, theta) {
+			const ZERO = new THREE.Vector2(0,0);
+			const SCALE = new THREE.Vector2(rx, ry);
+			const d0 = p0.clone().sub(center).divide(SCALE).rotateAround(ZERO, theta).normalize();
+			const d1 = p1.clone().sub(center).divide(SCALE).rotateAround(ZERO, theta).normalize();
+
+			return [Math.atan2(d0.y, d0.x), Math.atan2(d1.y, d1.x)]
+		}
+
+		function svgParser(path) {
+			const parts = path.split(/([MLHVCSQTAZ])/ig).filter(x => x.length > 0 && x.toLowerCase() != 'z');
+			const curve = new THREE.CurvePath();
+			let lastPoint = new THREE.Vector2( 0, 0 );
+			let lastControl = lastPoint;
+			for(let i=0;i< parts.length; i+=2) {
+				const command = parts[i];
+				let value = parts[i+1].split(/(-?[0-9.]+)/).filter(x => x.length > 0 && !/[ ,]/.test(x)).map(parseFloat);
+				if(command.toLowerCase() == 'v') {
+					value = value.map(y => [0,y]).flat();
+				}
+				if(command.toLowerCase() == 'h') {
+					value = value.map(x => [x,0]).flat();
+				}
+				const isUpper = /[A-Z]/.test(command);
+				const lCommand = command.toLowerCase();
+				function transformPoint(x,y) {
+					if(!isUpper) {
+						return new THREE.Vector2(lastPoint.x+x,lastPoint.y+y)
+					}
+					return new THREE.Vector2(x,y);
+				}
+				switch(lCommand) {
+					case 'm':
+					case 'l':
+					case 'v':
+					case 'h': {
+						for(let j=0;j<value.length;j+=2) {
+							const x = value[j];
+							const y = value[j+1];
+							const pt = transformPoint(x,y);
+							if(lCommand == 'h') {
+								pt.y = lastPoint.y;
+							}
+							if(lCommand == 'v') {
+								pt.x = lastPoint.x;
+							}
+							if(!(lCommand == 'm' && j==0)) {
+								curve.add(new THREE.LineCurve(lastPoint, pt))
+							}
+							lastPoint = pt;
+							lastControl = lastPoint
+						}
+						break;
+					}
+					case 'c': {
+						for(let j=0;j<value.length;j+=6) {
+							const p0 = lastPoint;
+							const c0 = transformPoint(value[j+0],value[j+1]);
+							const c1 = transformPoint(value[j+2],value[j+3]);
+							lastControl = c1;
+							const p1 = transformPoint(value[j+4],value[j+5]);
+							curve.add(new THREE.CubicBezierCurve(p0, c0, c1, p1));
+							lastPoint = p1;
+						}
+						break;
+					}
+					case 's': {
+						for(let j=0;j<value.length;j+=4) {
+							const p0 = lastPoint;
+							const c0 = new THREE.Vector2(-lastControl.x,-lastControl.y);
+							const c1 = transformPoint(value[j+0],value[j+1]);
+							lastControl = c1;
+							const p1 = transformPoint(value[j+2],value[j+3]);
+							curve.add(new THREE.CubicBezierCurve(p0, c0, c1, p1));
+							lastPoint = p1;
+						}
+						break;
+					}
+					case 'q': {
+						for(let j=0;j<value.length;j+=4) {
+							const p0 = lastPoint;
+							const c0 = transformPoint(value[j+0],value[j+1]);
+							lastControl = c0;
+							const p1 = transformPoint(value[j+2],value[j+3]);
+							curve.add(new THREE.QuadraticBezierCurve(p0, c0, p1));
+							lastPoint = p1;
+						}
+						break;
+					}
+					case 't': {
+						for(let j=0;j<value.length;j+=2) {
+							const p0 = lastPoint;
+							const c0 = new THREE.Vector2(-lastControl.x,-lastControl.y);
+							lastControl = c0;
+							const p1 = transformPoint(value[j+0],value[j+1]);
+							curve.add(new THREE.QuadraticBezierCurve(p0, c0, p1));
+							lastPoint = p1;
+						}
+						break;
+					}
+					case 'a': {
+						for(let j=0;j<value.length;j+=7) {
+							const p0 = lastPoint;
+							const rx = value[j+0]
+							const ry = value[j+1]
+							const xAxisRot = DegreesToRadians(value[j+2]);
+							const largeArcFlag = value[j+3]=='1'
+							const sweepFlag = value[j+4]=='1'
+							const p1 = transformPoint(value[j+5],value[j+6]);
+							const center = findEllipseCenters(p0, p1, rx, ry, xAxisRot)[sweepFlag ? 1 : 0];
+							const angles = ellipseVectorsToAngle(center, p0, p1, rx, ry, xAxisRot).sort();
+							curve.add(new THREE.EllipseCurve(center.x, center.y, rx, ry, angles[0], angles[1], largeArcFlag, xAxisRot));
+							lastPoint = p1;
+						}
+						break;
+					}
+				}
+			}
+			curve.closePath();
+			return curve;
+		}
+	</script>
 </body>
 </html>

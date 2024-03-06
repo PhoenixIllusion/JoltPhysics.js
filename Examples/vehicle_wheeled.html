@@ -53,7 +53,7 @@
 
 		let previousForward = 1.0;
 
-		initJolt().then(function (Jolt) {
+		initJolt({ mainScriptUrlOrBlob: './worker/vehicle_constraint.worker.js'}).then(function (Jolt) {
 			// Initialize this example
 			window.Jolt = Jolt;
 			container = document.getElementById('container');

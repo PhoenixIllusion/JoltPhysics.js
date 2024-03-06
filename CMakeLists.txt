@@ -7,6 +7,7 @@ set(EMSCRIPTEN_ROOT $ENV{EMSDK}/upstream/emscripten CACHE STRING "Emscripten pat
 set(CMAKE_TOOLCHAIN_FILE ${EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake)
 set(WEBIDL_BINDER_SCRIPT ${EMSCRIPTEN_ROOT}/tools/webidl_binder.py)
 set(JOLT_FRONT_MATTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/front-matter.js)
+set(JOLT_GLUE_EXTRA_FILE ${CMAKE_CURRENT_SOURCE_DIR}/jolt-glue-extras.js)
 set(JOLT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.h)
 set(JOLT_IDL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.idl)
 set(OUTPUT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/dist/)
@@ -80,7 +81,7 @@ endif()
 
 set(EMCC_ARGS
   --extern-pre-js ${JOLT_FRONT_MATTER_FILE}
-  --post-js glue.js
+  --post-js glue.js --post-js ${JOLT_GLUE_EXTRA_FILE}
   --closure=1
   ${MULTI_THREADED_FLAG}
   -s ALLOW_MEMORY_GROWTH=${ALLOW_MEMORY_GROWTH}

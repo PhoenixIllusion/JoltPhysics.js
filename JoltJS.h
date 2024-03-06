@@ -658,3 +658,8 @@ public:
 	/// Value used to create gaps in the height field
 	static constexpr float	cNoCollisionValue = HeightFieldShapeConstants::cNoCollisionValue;
 };
+
+class SharedMemory {
+	public:
+	inline static long mPointer = 0;
+};

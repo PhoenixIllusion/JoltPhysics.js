@@ -3313,3 +3313,7 @@ interface JoltInterface {
 	static unsigned long long sGetTotalMemory();
 	static unsigned long long sGetFreeMemory();
 };
+
+interface SharedMemory {
+	static attribute unsigned long long mPointer;
+};

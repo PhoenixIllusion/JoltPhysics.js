@@ -10,6 +10,7 @@ set(JOLT_FRONT_MATTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/front-matter.js)
 set(JOLT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.h)
 set(JOLT_IDL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS.idl)
 set(OUTPUT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/dist/)
+set(JOLT_TYPING ${OUTPUT_FOLDER}/types.d.ts)
 
 # Option to turn on memory profiling
 option(ENABLE_MEMORY_PROFILER "Enable emscriptens memory profiler to help find leaks" OFF)
@@ -22,6 +23,9 @@ option(ENABLE_MULTI_THREADING "Compile the library in multi threading mode (warn
 
 # Option to turn on SIMD
 option(ENABLE_SIMD "Enable SIMD instructions (warning: last major browser to support this was Safari 16.4 in March 2023)" OFF)
+
+# Enable Debug Renderer
+option(ENABLE_DEBUG_RENDERER "Enable Debug Renderer" ON)
 
 # Option to speed up compilation by only compiling the WASM compat version
 option(BUILD_WASM_COMPAT_ONLY "Compile online the WASM compat version of the library (speeds up compilation)" OFF)
@@ -66,6 +70,14 @@ if (ENABLE_SIMD)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -msse4.2")
 else()
 	set(ENABLE_SIMD_FLAG "")
+endif()
+
+# Enable Debug Renderer
+if (ENABLE_DEBUG_RENDERER)
+	set(DEBUG_RENDER_FLAG -DJPH_DEBUG_RENDERER )
+	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
+else()
+	set(DEBUG_RENDER_FLAG "" )
 endif()
 
 # Include Jolt
@@ -154,11 +166,11 @@ set(EMCC_GLUE_ARGS
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		-DJPH_DEBUG_RENDERER -DJPH_PROFILE_ENABLED -D_DEBUG)
+		${DEBUG_RENDER_FLAG} -DJPH_PROFILE_ENABLED -D_DEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		-DJPH_DEBUG_RENDERER -DJPH_PROFILE_ENABLED -DNDEBUG)
+		${DEBUG_RENDER_FLAG} -DJPH_PROFILE_ENABLED -DNDEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Distribution")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
@@ -175,9 +187,17 @@ endif()
 project("JoltPhysics.js")
 
 add_custom_command(
-	OUTPUT glue.cpp glue.js
+	OUTPUT ${JOLT_TYPING}
+	COMMAND npx webidl-dts-gen -e -d -i jolt.idl -o ${JOLT_TYPING} -n Jolt
+	DEPENDS jolt.idl
+	COMMENT "Generating JoltPhysics.js bindings"
+	VERBATIM)
+
+add_custom_command(
+	OUTPUT glue.cpp glue.js jolt.idl
 	BYPRODUCTS parser.out WebIDLGrammar.pkl
-	COMMAND ${PYTHON} ${WEBIDL_BINDER_SCRIPT} ${JOLT_IDL_FILE} glue
+	COMMAND cat ${JOLT_IDL_FILE} > jolt.idl
+	COMMAND ${PYTHON} ${WEBIDL_BINDER_SCRIPT} jolt.idl glue
 	DEPENDS ${JOLT_IDL_FILE}
 	COMMENT "Generating JoltPhysics.js bindings"
 	VERBATIM)
@@ -188,7 +208,7 @@ add_custom_command(
 	DEPENDS glue.cpp ${JOLT_HEADER_FILE}
 	COMMENT "Building JoltPhysics.js bindings"
 	VERBATIM)
-add_custom_target(jolt-bindings ALL DEPENDS glue.js glue.o)
+add_custom_target(jolt-bindings ALL DEPENDS glue.js glue.o ${JOLT_TYPING})
 
 if (NOT BUILD_WASM_COMPAT_ONLY)
 	if (NOT ENABLE_MULTI_THREADING) # Not compatible with multi threading due to error: 'void wasm::I64ToI32Lowering::visitStore(Store *): Assertion `!curr->isAtomic && "atomic store not implemented"' failed.'

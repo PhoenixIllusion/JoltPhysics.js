@@ -24,9 +24,6 @@ option(ENABLE_MULTI_THREADING "Compile the library in multi threading mode (warn
 # Option to turn on SIMD
 option(ENABLE_SIMD "Enable SIMD instructions (warning: last major browser to support this was Safari 16.4 in March 2023)" OFF)
 
-# Enable Debug Renderer
-option(ENABLE_DEBUG_RENDERER "Enable Debug Renderer" ON)
-
 # Option to speed up compilation by only compiling the WASM compat version
 option(BUILD_WASM_COMPAT_ONLY "Compile online the WASM compat version of the library (speeds up compilation)" OFF)
 
@@ -72,14 +69,6 @@ else()
 	set(ENABLE_SIMD_FLAG "")
 endif()
 
-# Enable Debug Renderer
-if (ENABLE_DEBUG_RENDERER)
-	set(DEBUG_RENDER_FLAG -DJPH_DEBUG_RENDERER )
-	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
-else()
-	set(DEBUG_RENDER_FLAG "" )
-endif()
-
 # Include Jolt
 include(FetchContent)
 FetchContent_Declare(
@@ -89,6 +78,19 @@ FetchContent_Declare(
 		SOURCE_SUBDIR "Build"
 )
 FetchContent_MakeAvailable(JoltPhysics)
+
+
+# Enable Debug Renderer
+if (
+	(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
+	OR
+	(DEBUG_RENDERER_IN_DISTRIBUTION AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Distribution"))
+)
+	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
+	set(DEBUG_RENDER_FLAG "-DJPH_DEBUG_RENDERER")
+else() 
+	set(DEBUG_RENDER_FLAG "")
+endif()
 
 # Default is 64*1024*1024 = 64MB
 set(TOTAL_MEMORY 67108864 CACHE STRING "Total Memory")
@@ -122,6 +124,7 @@ set(EMCC_ARGS
   -s TOTAL_STACK=1048576
   -s TOTAL_MEMORY=${TOTAL_MEMORY}
   ${MEMORY_PROFILER_FLAG}
+	${DEBUG_RENDER_FLAG}
   ${INCLUDE_DEMANGLE_ALL_FLAG}
   ${ENABLE_SIMD_FLAG})
 
@@ -160,17 +163,18 @@ set(EMCC_GLUE_ARGS
   -DJPH_DISABLE_CUSTOM_ALLOCATOR
   -include ${JOLT_HEADER_FILE}
   ${MEMORY_PROFILER_FLAG}
+	${DEBUG_RENDER_FLAG}
   ${ENABLE_SIMD_FLAG})
 
 # Can't find a way to automatically inherit settings set by target_compile_definitions, so hardcoding defines here
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		${DEBUG_RENDER_FLAG} -DJPH_PROFILE_ENABLED -D_DEBUG)
+		-DJPH_PROFILE_ENABLED -D_DEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		${DEBUG_RENDER_FLAG} -DJPH_PROFILE_ENABLED -DNDEBUG)
+		-DJPH_PROFILE_ENABLED -DNDEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Distribution")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}

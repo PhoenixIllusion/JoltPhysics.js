@@ -29,6 +29,7 @@ interface Color {
 };
 
 interface BodyManagerDrawSettings {
+		void BodyManagerDrawSettings();
 		attribute boolean mDrawGetSupportFunction;
 		attribute boolean mDrawSupportDirection;
 		attribute boolean mDrawGetSupportingFace;

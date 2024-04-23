@@ -1,11 +1,11 @@
 const unwrapV3 = (ptr) => wrapVec3(Jolt.wrapPointer(ptr, Jolt.RVec3));
 const textDecoder = new TextDecoder();
 class DebugRenderer {
+    materialCache = {};
     lineCache = {};
     lineMesh = {};
     triangleCache = {};
     triangleMesh = {};
-    materialCache = {};
     meshList = [];
     geometryList = [];
     geometryCache = [];
@@ -13,8 +13,8 @@ class DebugRenderer {
     textList = [];
     renderer;
     css3dRender;
-    constructor(jolt) {
-        const renderer = this.renderer = new jolt.DebugRendererJS();
+    constructor() {
+        const renderer = this.renderer = new Jolt.DebugRendererJS();
         renderer.DrawLine = this.drawLine.bind(this);
         renderer.DrawTriangle = this.drawTriangle.bind(this);
         renderer.DrawText3D = this.drawText3D.bind(this);
@@ -67,7 +67,7 @@ class DebugRenderer {
         const v2 = wrapVec3(modelMatrix.GetAxisZ());
         const v3 = wrapVec3(modelMatrix.GetTranslation());
         const matrix = new THREE.Matrix4().makeBasis(v0, v1, v2).setPosition(v3);
-        this.geometryList.push({ matrix: matrix, geometry: this.geometryCache[inGeometryID], color: colorU32 });
+        this.geometryList.push({ matrix: matrix, geometry: this.geometryCache[inGeometryID], color: colorU32, drawMode: inDrawMode, cullMode: inCullMode });
     }
     createTriangleBatchID(inTriangles, inTriangleCount) {
         const batchID = this.geometryCache.length;
@@ -131,43 +131,69 @@ class DebugRenderer {
         this.geometryCache.push(geometry);
         return batchID;
     }
-    getMeshMaterial(color) {
-        if (!this.materialCache[color]) {
-            this.materialCache[color] = new THREE.MeshPhongMaterial({ color: color });
+    getMeshMaterial(color, cullMode, drawMode) {
+        const key = `${color}|${cullMode}|${drawMode}`;
+        if (!this.materialCache[key]) {
+            const material = this.materialCache[key] = new THREE.MeshPhongMaterial({ color: color });
+            if (drawMode == Jolt.EDrawMode_Wireframe) {
+                material.wireframe = true;
+            }
+            if (cullMode !== undefined) {
+                switch (cullMode) {
+                    case Jolt.ECullMode_Off:
+                        material.side = THREE.DoubleSide;
+                        break;
+                    case Jolt.ECullMode_CullBackFace:
+                        material.side = THREE.FrontSide;
+                        break;
+                    case Jolt.ECullMode_CullFrontFace:
+                        material.side = THREE.BackSide;
+                        break;
+                }
+            }
         }
-        return this.materialCache[color];
+        return this.materialCache[key];
     }
-    Finish() {
+    Render() {
+        [Object.values(this.lineMesh), Object.values(this.triangleMesh), this.meshList, this.textCache].forEach(meshes => {
+            meshes.forEach(mesh => mesh.visible = false);
+        });
         Object.entries(this.lineCache).forEach(([colorU32, points]) => {
             const color = parseInt(colorU32, 10);
             if (this.lineMesh[color]) {
                 this.lineMesh[color].geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const mesh = this.lineMesh[color];
+                mesh.visible = true;
             }
             else {
                 const material = new THREE.LineBasicMaterial({ color: color });
                 const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                this.lineMesh[color] = new THREE.LineSegments(geometry, material);
-                scene.add(this.lineMesh[color]);
+                const mesh = this.lineMesh[color] = new THREE.LineSegments(geometry, material);
+                mesh.layers.set(1);
+                scene.add(mesh);
             }
         });
         Object.entries(this.triangleCache).forEach(([colorU32, points]) => {
             const color = parseInt(colorU32, 10);
             if (this.triangleMesh[color]) {
                 this.triangleMesh[color].geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const mesh = this.triangleMesh[color];
+                mesh.visible = true;
             }
             else {
-                const material = this.getMeshMaterial(color);
+                const material = this.getMeshMaterial(color, undefined, undefined);
                 const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                this.triangleMesh[color] = new THREE.Mesh(geometry, material);
-                scene.add(this.triangleMesh[color]);
+                const mesh = this.triangleMesh[color] = new THREE.Mesh(geometry, material);
+                mesh.layers.set(1);
+                scene.add(mesh);
             }
         });
-        this.meshList.forEach(mesh => mesh.visible = false);
-        this.geometryList.forEach(({ geometry, color, matrix }, i) => {
-            const material = this.getMeshMaterial(color);
+        this.geometryList.forEach(({ geometry, color, matrix, cullMode, drawMode }, i) => {
+            const material = this.getMeshMaterial(color, cullMode, drawMode);
             let mesh = this.meshList[i];
             if (!mesh) {
                 mesh = this.meshList[i] = new THREE.Mesh(geometry, material);
+                mesh.layers.set(1);
                 scene.add(mesh);
             }
             else {
@@ -177,7 +203,6 @@ class DebugRenderer {
             matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
             mesh.visible = true;
         });
-        this.textCache.forEach(mesh => mesh.visible = false);
         this.textList.forEach(({ position, text, color, height }, i) => {
             let mesh = this.textCache[i];
             if (!this.css3dRender) {
@@ -185,30 +210,131 @@ class DebugRenderer {
                 this.css3dRender.setSize(renderer.domElement.width, renderer.domElement.height);
                 const element = this.css3dRender.domElement;
                 element.style.position = 'absolute';
-                element.style.left = element.style.right = element.style.top = element.style.bottom = '0px';
-                document.getElementById('container').append(this.css3dRender.domElement);
-
-	            window.addEventListener('resize', () => {
-                    this.css3dRender.setSize(renderer.domElement.width, renderer.domElement.height);
-                }, false);
+                element.style.left = element.style.right = element.style.top = element.style.bottom = '0';
+                document.getElementById('container')?.append(element);
             }
             if (!mesh) {
-                const div = document.createElement('div')
-                div.style.display = 'inline-block'
-                mesh = this.textCache[i] = new THREE.CSS3DObject(div);
+                mesh = this.textCache[i] = new THREE.CSS3DObject(document.createElement('div'));
+                mesh.element.style.display = 'block';
+                mesh.element.style.fontSize = '1px';
+                mesh.layers.set(1);
                 scene.add(mesh);
             }
             else {
                 mesh.element.innerText = text;
-                mesh.element.style.fontSize = '1px'
                 mesh.element.style.color = '#' + ('000000' + color.toString(16)).substr(-6);
             }
             mesh.position.copy(position);
             mesh.visible = true;
         });
+        this.css3dRender && this.css3dRender.render(scene, camera);
         this.geometryList = [];
         this.textList = [];
         this.lineCache = {};
         this.triangleCache = {};
+    }
+}
+const BodyDrawSettingsMap = [
+    { key: 'mDrawShape', label: 'Shape' },
+    { key: 'mDrawShapeWireframe', label: 'Shape Wireframe' },
+    { key: 'mDrawShapeColor', label: 'Shape Color', options: [
+            { key: "EShapeColor_InstanceColor", label: 'Instance Color' },
+            { key: "EShapeColor_ShapeTypeColor", label: 'Shape Type Color' },
+            { key: "EShapeColor_MotionTypeColor", label: 'Motion Color' },
+            { key: "EShapeColor_SleepColor", label: 'Sleep Color' },
+            { key: "EShapeColor_IslandColor", label: 'Island Color' },
+            { key: "EShapeColor_MaterialColor", label: 'Material Color' }
+        ] },
+    { key: 'mDrawGetSupportFunction', label: 'Get Support Function' },
+    { key: 'mDrawSupportDirection', label: 'Support Direction' },
+    { key: 'mDrawGetSupportingFace', label: 'Get Supporting Face' },
+    { key: 'mDrawBoundingBox', label: 'Bounding Box' },
+    { key: 'mDrawCenterOfMassTransform', label: 'Center of Mass Transform' },
+    { key: 'mDrawWorldTransform', label: 'World Transform' },
+    { key: 'mDrawVelocity', label: 'Velocity' },
+    { key: 'mDrawMassAndInertia', label: 'Mass And Intertia' },
+    { key: 'mDrawSleepStats', label: 'Sleep Stats' },
+    { header: 'Soft Body' },
+    { key: 'mDrawSoftBodyVertices', label: 'Vertices' },
+    { key: 'mDrawSoftBodyVertexVelocities', label: 'Vertex Velocities' },
+    { key: 'mDrawSoftBodyEdgeConstraints', label: 'Edge Constraints' },
+    { key: 'mDrawSoftBodyBendConstraints', label: 'Bend Constraints' },
+    { key: 'mDrawSoftBodyVolumeConstraints', label: 'Volume Constraints' },
+    { key: 'mDrawSoftBodySkinConstraints', label: 'Skin Constraints' },
+    { key: 'mDrawSoftBodyLRAConstraints', label: 'LRA Constraints' },
+    { key: 'mDrawSoftBodyPredictedBounds', label: 'Predicted Bounds' },
+];
+class RenderWidget {
+    renderer;
+    bodyDrawSettings;
+    domElement;
+    drawConstraints = true;
+    drawBodies = true;
+    constructor(jolt) {
+        window.Jolt = jolt;
+        this.renderer = new DebugRenderer();
+        this.bodyDrawSettings = new Jolt.BodyManagerDrawSettings();
+        this.domElement = document.createElement('div');
+        this.domElement.className = "debug-renderer";
+        this.domElement.innerHTML = `<style> .debug-renderer { z-index: 2; position: absolute; right: 0; top: 0; max-width: 300px } .debug-renderer label { display: block }</style>`;
+    }
+    init() {
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 10, 5);
+        dirLight.layers.set(1);
+        scene.add(dirLight);
+        scene.layers.mask = 3;
+        const renderMask = document.createElement('select');
+        renderMask.innerHTML = `<option value='1' selected>ORIGINAL</option><option value='2'>DEBUG</option><option value='3'>BOTH</option>`;
+        renderMask.onchange = () => camera.layers.mask = parseInt(renderMask.value, 10);
+        this.domElement.append(renderMask);
+        this.addCheckBox('Draw Bodies', this.drawBodies, (checked) => this.drawBodies = checked);
+        this.addCheckBox('Draw Constraints', this.drawConstraints, (checked) => this.drawConstraints = checked);
+        BodyDrawSettingsMap.forEach(item => {
+            if (item.header) {
+                const header = document.createElement('h2');
+                header.innerText = item.header;
+                this.domElement.append(header);
+            }
+            else {
+                if (item.options) {
+                    const label = document.createElement('label');
+                    label.innerText = item.label;
+                    this.domElement.append(label);
+                    const options = document.createElement('select');
+                    item.options.forEach(option => {
+                        const o = document.createElement('option');
+                        o.innerText = option.label;
+                        o.value = option.key;
+                        options.append(o);
+                    });
+                    options.onchange = () => {
+                        this.bodyDrawSettings[item.key] = Jolt[options.value];
+                    };
+                    label.append(options);
+                }
+                else {
+                    this.addCheckBox(item.label, this.bodyDrawSettings[item.key], (checked) => this.bodyDrawSettings[item.key] = checked);
+                }
+            }
+        });
+    }
+    addCheckBox(labelText, initialValue, onChange) {
+        const label = document.createElement('label');
+        label.innerText = labelText;
+        this.domElement.append(label);
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        check.checked = initialValue;
+        check.onclick = () => { onChange(check.checked); };
+        label.append(check);
+    }
+    render() {
+        this.renderer.Initialize();
+        if (this.drawBodies)
+            this.renderer.DrawBodies(physicsSystem, this.bodyDrawSettings);
+        if (this.drawConstraints)
+            this.renderer.DrawConstraints(physicsSystem);
+        this.renderer.Render();
     }
 }

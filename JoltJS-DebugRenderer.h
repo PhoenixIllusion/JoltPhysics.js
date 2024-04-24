@@ -105,6 +105,22 @@ class DebugRendererEm : public JPH::DebugRenderer
   void DrawConstraints(PhysicsSystem* system) {
 	  system->DrawConstraints(this);
   }
+  void DrawConstraintLimits(PhysicsSystem* system) {
+	  system->DrawConstraintLimits(this);
+  }
+  void DrawConstraintReferenceFrame(PhysicsSystem* system) {
+	  system->DrawConstraintReferenceFrame(this);
+  }
+  void DrawShape(Shape* inShape, const RMat44 *inModelMatrix, const RVec3 *inScale, const Color * inColor, bool inDrawWireFrame) {
+    inShape->Draw(this, *inModelMatrix, *inScale, *inColor, false, inDrawWireFrame);
+  }
+  void DrawBody(Body* body, const Color * inColor, bool inDrawWireFrame) {
+			RMat44 com = body->GetCenterOfMassTransform();
+			body->GetShape()->Draw(this, com, Vec3::sReplicate(1.0f), *inColor, false, inDrawWireFrame);
+  }
+  void DrawConstraint(Constraint * inConstraint) {
+			inConstraint->DrawConstraint(this);
+  }
 private:
 	/// Implementation specific batch object
 	class BatchImpl : public RefTargetVirtual

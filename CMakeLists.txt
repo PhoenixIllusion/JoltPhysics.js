@@ -79,19 +79,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JoltPhysics)
 
-
-# Enable Debug Renderer
-if (
-	(DEBUG_RENDERER_IN_DEBUG_AND_RELEASE AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
-	OR
-	(DEBUG_RENDERER_IN_DISTRIBUTION AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Distribution"))
-)
-	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
-	set(DEBUG_RENDER_FLAG "-DJPH_DEBUG_RENDERER")
-else() 
-	set(DEBUG_RENDER_FLAG "")
-endif()
-
 # Default is 64*1024*1024 = 64MB
 set(TOTAL_MEMORY 67108864 CACHE STRING "Total Memory")
 
@@ -168,13 +155,15 @@ set(EMCC_GLUE_ARGS
 
 # Can't find a way to automatically inherit settings set by target_compile_definitions, so hardcoding defines here
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		-DJPH_PROFILE_ENABLED -D_DEBUG)
+		-DJPH_DEBUG_RENDERER -DJPH_PROFILE_ENABLED -D_DEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+	set(JOLT_IDL_FILE ${JOLT_IDL_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/JoltJS-DebugRenderer.idl )
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
-		-DJPH_PROFILE_ENABLED -DNDEBUG)
+		-DJPH_DEBUG_RENDERER -DJPH_PROFILE_ENABLED -DNDEBUG)
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "Distribution")
 	set(EMCC_GLUE_ARGS
 		${EMCC_GLUE_ARGS}
